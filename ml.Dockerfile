@@ -43,9 +43,6 @@ RUN ${PIP} install tensorflow==2.0.0
 RUN ${PIP} install tensorflow_hub
 RUN ${PIP} install tensorflow_datasets
 
-# update system-wide bashrc before creating user
-COPY bashrc.docker /etc/skel/.bashrc
-
 # create user and group matching permissions for host volumes
 RUN addgroup --gid ${GROUPID} ${GROUP} && \
     useradd --create-home \
@@ -53,6 +50,9 @@ RUN addgroup --gid ${GROUPID} ${GROUP} && \
     --uid ${USERID} \
     --gid ${GROUPID} \
     ${USER}
+
+# if update to system /etc/skel/.bashrc must do before creating user
+COPY bashrc.docker /home/$USER/.bashrc
 
 # stay as root for now. `su $USER` in guest.
 # USER ${USER}

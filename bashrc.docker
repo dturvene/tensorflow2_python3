@@ -1,0 +1,20 @@
+#!/bin/bash
+# See /etc/bash.bashrc
+LOG=/tmp/setup.log
+
+grep docker /proc/1/cgroup >> $LOG
+if [ $? != 0 ]; then
+    echo "NOT IN CONTAINER"
+    exit -1
+fi
+
+[ -z "$PS1" ] && return
+
+shopt -s checkwinsize
+
+# simple bash prompt
+export PS1='\u:\!> '
+export TERM=linux
+echo -e "\e[m"
+
+alias h="history"

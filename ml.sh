@@ -61,7 +61,7 @@ trapexit() {
 #####################################################################
 
 # build docker image
-ml_b()
+host_build()
 {
     if [ -z "$ML_IMG" ]; then
 	echo "\$ML_IMG needs to be set"
@@ -80,10 +80,10 @@ ml_b()
 }
 
 # start docker image
-ml_u()
+host_run()
 {
-    # host workspace
-    cd ~/GIT/python
+    # host workspace, the git repo
+    cd ~/GIT/tensorflow2_python3/
 
     if [ -z "$ML_IMG" ]; then
 	echo "\$ML_IMG needs to be set"	
@@ -94,14 +94,13 @@ ml_u()
     docker run \
 	   --env="DISPLAY" \
 	   --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
-	   --volume="$GK/docker:/home/docker" \
 	   --volume="$PWD:/home/work" \
 	   --volume="$HOME/ML_DATA:/data" \
-	   --workdir=/home/work/ML \
+	   --workdir=/home/work \
 	   --rm -it $ML_IMG
 }
 
-ml_c()
+host_commit()
 {
     echo "commit container changes to a new image"
 
@@ -124,7 +123,7 @@ ml_c()
     docker images
 }
 
-ml_info()
+host_info()
 {
     docker ps
     
@@ -133,7 +132,7 @@ ml_info()
     docker image inspect $ML_IMG
 }
 
-ml_save()
+host_save()
 {
     echo "docker save"
     echo "docker load"
@@ -143,7 +142,7 @@ ml_save()
 # push to docker hub
 # https://ropenscilabs.github.io/r-docker-tutorial/04-Dockerhub.html
 # https://docs.docker.com/docker-hub/builds/
-ml_push()
+host_push()
 {
     HUB_IMG=dturvene/tensorflow2_python3:hub_tfds
 
@@ -154,6 +153,31 @@ ml_push()
 
     echo "push $HUB_IMG... long time"
     docker push $HUB_IMG
+}
+
+###############################################################################
+# Guest regression testing
+###############################################################################
+guest_test()
+{
+    # unit test python ML packages
+    echo "Tensorflow regression testing..."
+    python ut_ml.py
+    
+    # keras basic regression with seaborn plots
+    # creates a png that is used in ut_ml.py
+    echo "Keras basic regression using the MPG dataset"
+    python ut_keras.py
+
+    # tensorflow, hub and pre-trained model
+    # comprehensive image training and validation on flower dataset
+    # this takes 20min to download and train....
+    FLOWERS_PREDICT_FILES=/data/flowers.predict
+    if [ ! -d $FLOWERS_PREDICT_FILES  ]; then
+	echo 'no $FLOWERS_PREDICT_FILES so cannot validate training'
+	exit -1
+    fi
+    #python ut_hub.py
 }
 
 ###########################################
