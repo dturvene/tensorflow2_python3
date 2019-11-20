@@ -177,7 +177,7 @@ guest_test()
 	echo 'no $FLOWERS_PREDICT_FILES so cannot validate training'
 	exit -1
     fi
-    #python ut_hub.py
+    python ut_hub.py
 }
 
 ###########################################

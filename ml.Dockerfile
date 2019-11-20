@@ -1,11 +1,10 @@
 # Container for ML work
-# See docker.sh ml_all
-# This will put guest in python work area
+# See ml.sh for usage
 
 FROM ubuntu:18.04 as base
 ENV LANG C.UTF-8
 
-# so apt-get does not prompt user
+# hack so apt-get does not prompt user
 ENV DEBIAN_FRONTEND=noninteractive
 
 ARG PYTHON=python3
@@ -17,9 +16,9 @@ ARG GROUP=user1
 ARG USERID=1000
 ARG GROUPID=1000
 
-# update base packages
+# update base packages (based on cpu.Dockerfile)
 # install tools
-# From cpu.Dockerfile, install python and pip
+# install python and pip
 # for X11 display add the python TK package
 RUN apt-get update --fix-missing && \
     apt-get install -y \
@@ -51,7 +50,7 @@ RUN addgroup --gid ${GROUPID} ${GROUP} && \
     --gid ${GROUPID} \
     ${USER}
 
-# if update to system /etc/skel/.bashrc must do before creating user
+# note: another ways is to update /etc/skel/.bashrc but must do before creating user
 COPY bashrc.docker /home/$USER/.bashrc
 
 # stay as root for now. `su $USER` in guest.
