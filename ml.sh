@@ -82,8 +82,12 @@ host_build()
 # start docker image
 host_run()
 {
+    DIR_REF=$HOME/GIT/tensorflow2_python3
+    DIR_WORK=$HOME/GIT/python
+    DIR_DATA=$HOME/ML_DATA
+    
     # host workspace, the git repo
-    cd ~/GIT/tensorflow2_python3/
+    cd $DIR_REF
 
     if [ -z "$ML_IMG" ]; then
 	echo "\$ML_IMG needs to be set"	
@@ -94,8 +98,9 @@ host_run()
     docker run \
 	   --env="DISPLAY" \
 	   --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
-	   --volume="$PWD:/home/work" \
-	   --volume="$HOME/ML_DATA:/data" \
+	   --volume="$PWD:/home/ref" \
+	   --volume="$DIR_WORK:/home/work" \
+	   --volume="$DIR_DATA:/data" \
 	   --workdir=/home/work \
 	   --rm -it $ML_IMG
 }
@@ -160,6 +165,10 @@ host_push()
 ###############################################################################
 guest_test()
 {
+
+    echo "sanity test"
+    python -c "import tensorflow as tf; print(tf.reduce_sum(tf.random.normal([1000,1000])))"
+    
     # unit test python ML packages
     echo "Tensorflow regression testing..."
     python ut_ml.py
@@ -177,7 +186,8 @@ guest_test()
 	echo 'no $FLOWERS_PREDICT_FILES so cannot validate training'
 	exit -1
     fi
-    python ut_hub.py
+    echo "do not run ut_hub.py"
+    #python ut_hub.py
 }
 
 ###########################################

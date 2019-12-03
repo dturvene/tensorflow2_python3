@@ -84,9 +84,6 @@ def ut_tfds():
     # print(tfds.list_builders())
 
     ds_tra = tfds.load(name='lfw', split=tfds.Split.TRAIN)
-    #ds_tst = tfds.load(name='lfw', split=tfds.Split.TEST)
-    #ds_val = tfds.load(name='lfw', split=tfds.Split.VALIDATION)
-
     ds = ds_tra.shuffle(1024).batch(16).prefetch(tf.data.experimental.AUTOTUNE)
 
     fig = plt.figure(figsize=(16,16))
@@ -99,7 +96,6 @@ def ut_tfds():
             a = fig.add_subplot(4,4,i+1)
             plt.imshow(img4d[i])
         plt.show()
-
     
 class Ut(unittest.TestCase):
     def setUp(self):

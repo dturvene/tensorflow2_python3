@@ -33,10 +33,11 @@ it isn't in the image.
 # Repo Layout
 
 ## ml.Dockerfile
-THis is the dockerfile used to build the image.
+This is the dockerfile used to build the image. See `ml.sh:host_build` for its
+use.
 
-It creates a non-privileged user matching the user id/group of the owner of the
-host volumes.
+This dockerfile creates a non-privileged user matching the user id/group of the
+owner of the host volumes.
 
 The container starts in root.  The first step is to run `su user1` to switch to
 the non-privileged user1 and load the `.bashrc`.
@@ -71,8 +72,9 @@ This is a simple `.bashrc` for the user.  Simple, nothing interesting.  I like
 to run inside an emacs shell window so control characters and highlighting are
 not desired.
 
-## Regression testing scripts
-See `ml.sh:guest_test` for the use of the regression scripts.  Briefly
+## Regression Scripts
+See `ml.sh:guest_test` for the use of the regression scripts.  These attempt to
+verify that all the expected functionality is present and working.
 
 ### ut_ml.py
 This demonstrates that all the necessary python packages are installed and runs some
@@ -85,7 +87,8 @@ actual MPG feature values.
 
 ### ut_hub.py
 This is an extensive test using:
-* the standard tensorflow `flowers` dataset
+* the [flowers photos](https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz)
+  dataset
 * transfer learning using `mobilenetv2`
 * model based on `mobilenetv2` adding a couple layers
 * Categorical Cross Entropy loss function
@@ -93,3 +96,4 @@ This is an extensive test using:
 This will take ~20min to run.
 
 
+## Research Scripts
