@@ -165,6 +165,7 @@ host_push()
 #####################################################################
 # NVIDIA h/w setup for use as a GPU
 #####################################################################
+# https://www.cyberciti.biz/faq/ubuntu-linux-install-nvidia-driver-latest-proprietary-driver/
 host_install_nvidia()
 {
     # detect nvidia h/w

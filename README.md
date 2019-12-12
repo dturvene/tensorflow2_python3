@@ -84,9 +84,9 @@ guest root> su user1
 user1:1> ./ml.sh guest_gpu_test
 ```
 
-### ml.sh GPU support
-There are a number of functions in `ml.sh` to set up the nvidia CUDA libraries.
-These only need to be done once.
+### ml.sh GPU setup
+There are a number of functions in `ml.sh` to set up the nvidia CUDA libraries
+and build a docker GPU image.  These only need to be done once.
 
 * host_install_nvidia: install the lastest nvidia driver for the detected GPU,
   and switch to the intel display for graphics.  This requires a reboot.
@@ -95,7 +95,15 @@ These only need to be done once.
 * host_gpu_build: build a custom GPU docker image use a base of
   `tensorflow/tensorflow:latest-gpu-py3`.  Name the image using the `GPU_IMG`
   environment variable.
+  
+### ml.sh GPU execution
+There is one host-side function to start a container for `GPU_IMG`.  On exit,
+the container will be removed.
+
 * host_gpu_run: start a container for `GPU_IMG`.
+
+There is one guest-side function to regresstion test GPU and X11 functionality.
+
 * guest_gpu_test: regression test a GPU-enabled docker container. 
 
 ## ml.Dockerfile
