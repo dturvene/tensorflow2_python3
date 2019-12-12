@@ -7,14 +7,18 @@ unit test for packages and keras support
 
 import sys
 from pdb import set_trace as bp
+import unittest
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+import timeit
+
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+import tensorflow_datasets as tfds
 
 def get_rawdata():
     '''get raw dataset
@@ -75,11 +79,13 @@ def getdata():
 
     return (train_dataset, test_dataset, train_stats)
 
-def view_sns(tr_d, figfile='/tmp/reg1.png'):
+def view_sns(tr_d, figfile='/data/TEST_IMAGES/reg1.png'):
     '''tr_d is a pd.DataFrame'''
 
     print('create pairplot')
-    diag=sns.pairplot(tr_d[["MPG", "Cylinders", "Displacement", "Weight", "Acceleration"]], diag_kind="kde")
+    diag=sns.pairplot(
+        tr_d[["MPG", "Cylinders", "Displacement", "Weight", "Acceleration"]],
+        diag_kind="kde")
 
     print(f'save image to {figfile}...')
     diag.savefig(figfile)
@@ -158,14 +164,14 @@ def plot_history(history):
     # show both MPG and MPG^2 graphs
     plt.show()
 
-def br():
+def ut_keras_br():
     '''
     https://github.com/tensorflow/docs/blob/master/site/en/r2/tutorials/keras/basic_regression.ipynb
     '''
     # training, test, training stats PD DataFrame
     (tr_data, ts_data, tr_stats) = getdata()
 
-    view_sns(ts_data, '/tmp/ts_data.png')
+    view_sns(ts_data)
 
     # remove MPG column and create in separate label objects
     print('remove MPG')
@@ -186,8 +192,12 @@ def br():
     early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
     # fit to normalized training data and labels
-    history = model.fit(tr_norm, tr_labels, epochs=1000,
-                        validation_split = 0.2, verbose=0, callbacks=[early_stop, PrintDot()])
+    history = model.fit(tr_norm,
+                        tr_labels,
+                        epochs=1000,
+                        validation_split = 0.2,
+                        verbose=0,
+                        callbacks=[early_stop, PrintDot()])
     # new line after PrintDot calls...
     print('\n')
 
@@ -215,8 +225,74 @@ def br():
     plt.xlabel("Prediction Error [MPG]")
     _ = plt.ylabel("Count")
     plt.show()
-  
+
+def ut_tfbeg():
+    '''
+    Demo TF2 beginner test using mnist
+    See https://www.tensorflow.org/tutorials/quickstart/beginner
+    '''
+    mnist = tf.keras.datasets.mnist
+
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    x_train, x_test = x_train / 255.0, x_test / 255.0
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Flatten(input_shape=(28, 28)),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(10, activation='softmax')
+    ])
+
+    model.compile(optimizer='adam',
+                  loss='sparse_categorical_crossentropy',
+                  metrics=['accuracy'])
+    print('fit')
+    model.fit(x_train, y_train, epochs=5)
+    print('evaluate')
+    scores=model.evaluate(x_test, y_test, verbose=0)
+    print('loss={} acc={}'.format(scores[0], scores[1]))
+
+def ut_tfds():
+    '''
+    https://www.tensorflow.org/datasets
+    
+    https://www.tensorflow.org/datasets/catalog/overview
+    122 datasets
+
+    lfw: https://www.tensorflow.org/datasets/catalog/lfw 
+    TRAIN: 13,233
+    '''
+    # print(tfds.list_builders())
+
+    ds_tra = tfds.load(name='lfw', split=tfds.Split.TRAIN)
+    ds = ds_tra.shuffle(1024).batch(16).prefetch(tf.data.experimental.AUTOTUNE)
+
+    fig = plt.figure(figsize=(16,16))
+
+    # 4D conv2D layer (batch, rows, cols, channels)
+    for features in ds.take(1):
+        img4d = features['image']
+        print('i={}, label={}'.format(img4d.shape, features['label']))
+        for i in range(img4d.shape[0]):
+            a = fig.add_subplot(4,4,i+1)
+            plt.imshow(img4d[i])
+        plt.show()
+
+class Ut(unittest.TestCase):
+    def setUp(self):
+        pass
+    def tearDown(self):
+        pass
+    #@unittest.skip('pass')
+    def test1(self):
+        pass
+    #@unittest.skip('good')
+    def test2(self):
+        ut_keras_br()
+    #@unittest.skip('good')        
+    def test3(self):
+        ut_tfbeg()
+
 if __name__ == '__main__':
-    # exec(open('./ut_br.py').read())
-    print(tf.__version__)
-    br()
+    # exec(open('./ut_tf.py').read())
+    print('tf={}'.format(tf.__version__))
+    unittest.main(exit=False)

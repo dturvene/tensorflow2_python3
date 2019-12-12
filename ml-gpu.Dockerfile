@@ -1,8 +1,9 @@
-# Image for ML work
-# this is a hack of tensorflow/tensorflow:latest-py3 (cpu.Dockerfile)
+# Image for ML GPU work
 # See ml.sh for usage
 
-FROM ubuntu:18.04 as base
+# use a tensorflow image, too much CUDA stuff to try
+# and copy
+FROM tensorflow/tensorflow:latest-gpu-py3 as base
 ENV LANG C.UTF-8
 
 # hack so apt-get does not prompt user
@@ -17,29 +18,19 @@ ARG GROUP=user1
 ARG USERID=1000
 ARG GROUPID=1000
 
-# update base packages (based on cpu.Dockerfile)
-# install tools
-# install python and pip
 # for X11 display add the python TK package
 RUN apt-get update --fix-missing && \
     apt-get install -y \
-	    ${PYTHON} \
-	    ${PYTHON}-pip \
-	    ${PYTHON}-tk \
+       	    ${PYTHON}-tk \
     && rm -rf /var/lib/apt/lists/*
-
-# install pip support
-RUN ${PIP} --no-cache-dir install --upgrade \
-    pip \
-    setuptools
-# tensorflow dockerfiles say to do this for some of their stuff    
-RUN ln -s $(which ${PYTHON}) /usr/local/bin/python
 
 # install ML packages
 RUN ${PIP} install numpy matplotlib pillow
 # seaborn also pulls in pytz, pandas, scipy
 RUN ${PIP} install seaborn
-RUN ${PIP} install tensorflow
+
+# this should already be installed by tensorflow/tensorflow:latest-gpu-py3
+RUN ${PIP} install tensorflow-gpu
 RUN ${PIP} install tensorflow_hub
 RUN ${PIP} install tensorflow_datasets
 

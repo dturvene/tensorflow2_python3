@@ -114,7 +114,6 @@ class Dflg1():
         self.model.add( layers.Dense(self.train_gen.num_classes, activation='softmax', kernel_regularizer=tf.keras.regularizers.l2(0.0001)) )
         self.model.build((None,)+(self.img_height, self.img_width)+(3,))
         #self.model.summary()
-
         
         if True:
             self.model.compile(loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
@@ -255,9 +254,8 @@ class Ut(unittest.TestCase):
             image_batch, label_batch=next(self.ut.train_gen)
             self.ut.show_batch(image_batch, label_batch)
 
-            
 if __name__ == '__main__':
-    # exec(open('./flg1.py').read())
+    # exec(open('./ut_hub.py').read())
     print('tf={}, keras={}'.format(tf.__version__, tf.keras.__version__))
     print('hub={}'.format(hub.__version__))
     unittest.main(exit=False)

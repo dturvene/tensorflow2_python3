@@ -1,6 +1,8 @@
 #!/bin/bash
 # See /etc/bash.bashrc
-LOG=/tmp/setup.log
+LOG=/tmp/setup.$$.log
+touch $LOG
+chmod 666 $LOG
 
 grep docker /proc/1/cgroup >> $LOG
 if [ $? != 0 ]; then

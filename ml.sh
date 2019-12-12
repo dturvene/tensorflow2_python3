@@ -61,6 +61,8 @@ trapexit() {
 #####################################################################
 
 # build docker image
+# example ML_IMG defs:
+#   ml_cpu:latest
 host_build()
 {
     if [ -z "$ML_IMG" ]; then
@@ -160,23 +162,103 @@ host_push()
     docker push $HUB_IMG
 }
 
+
+#####################################################################
+# GPU support needs:
+# * a special nvidia base image
+# * a number of CUDA libraries
+# * LD_LIBRARY_PATH update and library soft link update
+# * a number of CUDA environment variables
+# Best to use the TF gpu images for now
+#
+# See
+# * tensorflow/tools/dockerfiles/dockerfiles/
+#####################################################################
+# https://github.com/NVIDIA/nvidia-docker/blob/master/README.md#quickstart
+host_gpu_setup()
+{
+    distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+    # ubuntu18.04
+    curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+    curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+
+    echo "host: install nvidia-container-toolkit"
+    sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+    sudo systemctl restart docker
+    systemctl status docker
+}
+
+#export GPU_IMG=tensorflow/tensorflow:devel-gpu-py3
+#export GPU_IMG=tensorflow/tensorflow:nightly-gpu-py3
+# this is the best
+#export GPU_IMG=tensorflow/tensorflow:latest-gpu-py3
+host_gpu_pull()
+{
+    
+    # need to be here for small directory cache size
+    # and copy files to guest
+    cd ~/GIT/tensorflow2_python3
+
+    echo "Pull $GPU_IMG in $PWD"
+    docker pull $GPU_IMG
+
+    docker images
+}
+
+host_gpu_build()
+{
+    if [ -z "$GPU_IMG" ]; then
+	echo "\$GPU_IMG needs to be set"
+	docker images
+	exit -1
+    fi
+    
+    # need to be here for small directory cache size
+    # and copy files to guest
+    cd ~/GIT/tensorflow2_python3
+
+    echo "Building $ML_IMG in $PWD"
+    docker build -f ml-gpu.Dockerfile -t $GPU_IMG .
+
+    docker images
+}
+
+host_gpu_run()
+{
+    DIR_REF=$HOME/GIT/tensorflow2_python3
+    DIR_WORK=$HOME/GIT/python
+    DIR_DATA=$HOME/ML_DATA
+    
+    # host workspace, the git repo
+    cd $DIR_REF
+
+    if [ -z "$GPU_IMG" ]; then
+	echo "\$GPU_IMG needs to be set"	
+	docker images
+	exit -1
+    fi
+    
+    docker run \
+	   --env="DISPLAY" \
+	   --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+	   --volume="$PWD:/home/ref" \
+	   --volume="$DIR_WORK:/home/work" \
+	   --volume="$DIR_DATA:/data" \
+	   --workdir=/home/work \
+	   --gpus all \
+	   --rm -it $GPU_IMG
+}
+
 ###############################################################################
-# Guest regression testing
+# Guest setup and regression testing
 ###############################################################################
 guest_test()
 {
-
-    echo "sanity test"
-    python -c "import tensorflow as tf; print(tf.reduce_sum(tf.random.normal([1000,1000])))"
-    
     # unit test python ML packages
     echo "Tensorflow regression testing..."
     python ut_ml.py
     
-    # keras basic regression with seaborn plots
-    # creates a png that is used in ut_ml.py
-    echo "Keras basic regression using the MPG dataset"
-    python ut_keras.py
+    python ut_tf.py
 
     # tensorflow, hub and pre-trained model
     # comprehensive image training and validation on flower dataset
@@ -188,6 +270,44 @@ guest_test()
     fi
     echo "do not run ut_hub.py"
     #python ut_hub.py
+}
+
+#####################################################################
+# GPU support
+# depending on TF image used, these may be necessary
+#####################################################################
+guest_gpu_config()
+{
+    export PS1='gpu:\!> '
+
+    apt-get update --fix-missing
+    apt-get install -y python3-tk
+
+    pip install --upgrade pip
+    pip install seaborn matplotlib numpy pillow
+    # depending on $GPU_IMG: pip install tensorflow-gpu
+    pip install tensorflow_hub tensorflow_datasets
+
+    # cuda debug logging
+    export CUDNN_LOGINFO_DBG=1
+    export CUDNN_LOGDEST_DBG=stdout
+}
+
+guest_gpu_test()
+{
+    cd /home/ref
+
+    echo "check CUDA version"
+    cat /usr/local/cuda/version.txt
+    
+    echo "check tools"
+    nvcc --version
+    
+    echo "Benchmark GPU"
+    python ut_gpu.py
+
+    python ut_ml.py
+    python ut_tf.py
 }
 
 ###########################################
