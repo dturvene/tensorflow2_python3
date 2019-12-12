@@ -162,9 +162,62 @@ host_push()
     docker push $HUB_IMG
 }
 
+#####################################################################
+# NVIDIA h/w setup for use as a GPU
+#####################################################################
+host_install_nvidia()
+{
+    # detect nvidia h/w
+    sudo lshw -C display
+
+    echo "Remove existing nvidia drivers"
+    sudo apt-get -y update
+    sudo apt-get purge nvidia*
+
+    # python3 script to check for nvidia drivers
+    ubuntu-drivers devices
+
+    # install the recommended nvidia driver
+    # linger: GeForce GTX 1050 Ti Mobile
+    # hoho: GeForce GTX 960M
+    sudo ubuntu-drivers autoinstall
+
+    # python script to check for, and switch graphics drivers
+    prime-select query
+
+    # switch to intel built-in graphics so the nvidia card is not used
+    sudo prime-select intel
+
+    # reboot
+    sudo shutdown -r now
+}
+
+host_gpu_probe()
+{
+    # check this is intel
+    sudo prime-select query
+
+    # the nvidia drivers will not be loaded when intel is graphics
+    # load the driver now
+    sudo modprobe -v nvidia-uvm
+
+    # check the driver and hw health
+    nvidia-smi -a
+    nvidia-debugdump -l
+}
+
+host_gpu_unload()
+{
+    sudo modprobe -r nvidia-uvm
+
+    resp=$(nvidia-smi)
+    if [ $? != 9 ]; then
+	echo "nvidia driver: $resp"
+    fi
+}
 
 #####################################################################
-# GPU support needs:
+# GPU support needs for docker:
 # * a special nvidia base image
 # * a number of CUDA libraries
 # * LD_LIBRARY_PATH update and library soft link update
@@ -194,6 +247,9 @@ host_gpu_setup()
 #export GPU_IMG=tensorflow/tensorflow:latest-gpu-py3
 host_gpu_pull()
 {
+
+    echo "Use host_gpu_build"
+    exit 0
     
     # need to be here for small directory cache size
     # and copy files to guest
@@ -272,27 +328,6 @@ guest_test()
     #python ut_hub.py
 }
 
-#####################################################################
-# GPU support
-# depending on TF image used, these may be necessary
-#####################################################################
-guest_gpu_config()
-{
-    export PS1='gpu:\!> '
-
-    apt-get update --fix-missing
-    apt-get install -y python3-tk
-
-    pip install --upgrade pip
-    pip install seaborn matplotlib numpy pillow
-    # depending on $GPU_IMG: pip install tensorflow-gpu
-    pip install tensorflow_hub tensorflow_datasets
-
-    # cuda debug logging
-    export CUDNN_LOGINFO_DBG=1
-    export CUDNN_LOGDEST_DBG=stdout
-}
-
 guest_gpu_test()
 {
     cd /home/ref
@@ -300,8 +335,8 @@ guest_gpu_test()
     echo "check CUDA version"
     cat /usr/local/cuda/version.txt
     
-    echo "check tools"
-    nvcc --version
+    #echo "check tools for devel images"
+    #nvcc --version
     
     echo "Benchmark GPU"
     python ut_gpu.py

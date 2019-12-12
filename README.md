@@ -42,26 +42,22 @@ of logistics to replicate including:
 
 # Repo Layout
 
-## ml.Dockerfile
-This is the dockerfile used to build an image using only the CPU. See
-`ml.sh:host_build` for its use.
-
-This dockerfile creates a non-privileged user matching the user id/group of the
-owner of the host volumes.
-
-The container starts in root.  The first step is to run `su user1` to switch to
-the non-privileged user1 and load the `.bashrc`.
-
-## ml-gpu.Dockerfile
-This is the dockerfile used to build an image that *CAN* use a GPU if found.
-It has the same basic functionality as `ml.Dockerfile`.
-
 ## ml.sh
-This is a bash library that illustrates how to build, start, stop, etc. the
-containers.  Run `./ml.sh` to see the function list.  Functions that begin with
-`host_` are to be run on the host (outside of the container) and those with
-`guest_` are to be run inside a container.  The `host_cpu` functions must have
-the environment variable `ML_IMG` set 
+This is a bash function library that illustrates how to build, start, stop,
+etc. the containers.  Run `./ml.sh` to see the function list.  The function
+library has only been run on Ubuntu 18.04.
+
+Functions that begin with `host_` are to be run on the host (outside of the
+container) and those with `guest_` are to be run inside a container.
+
+The `host_cpu` functions must have the environment variable `ML_IMG` set and
+are targeted for a CPU-only tensorflow environment.
+
+The `host_gpu` functions must have the environment variable `GPU_IMG` set to
+the docker image to use and are targeted for a GPU tensorflow environment.
+The image should be capable of GPU support
+(see `ml.sh:host_gpu_setup`)  If a GPU does not exist,
+regression tests will run on the CPU.
 
 For example to build an image with GPU-support and run a container based on it:
 
@@ -88,6 +84,34 @@ guest root> su user1
 user1:1> ./ml.sh guest_gpu_test
 ```
 
+### ml.sh GPU support
+There are a number of functions in `ml.sh` to set up the nvidia CUDA libraries.
+These only need to be done once.
+
+* host_install_nvidia: install the lastest nvidia driver for the detected GPU,
+  and switch to the intel display for graphics.  This requires a reboot.
+* host_gpu_probe: test the nvidia GPU
+* host_gpu_setup: install the necessary APT packages to run a GPU docker image
+* host_gpu_build: build a custom GPU docker image use a base of
+  `tensorflow/tensorflow:latest-gpu-py3`.  Name the image using the `GPU_IMG`
+  environment variable.
+* host_gpu_run: start a container for `GPU_IMG`.
+* guest_gpu_test: regression test a GPU-enabled docker container. 
+
+## ml.Dockerfile
+This is the dockerfile used to build an image using only the CPU. See
+`ml.sh:host_build` for its use.
+
+This dockerfile creates a non-privileged user matching the user id/group of the
+owner of the host volumes.
+
+The container starts in root.  The first step is to run `su user1` to switch to
+the non-privileged user1 and load the `.bashrc`.
+
+## ml-gpu.Dockerfile
+This is the dockerfile used to build an image that *CAN* use a GPU if found.
+It has the same basic functionality as `ml.Dockerfile`.
+
 ## bashrc.docker
 This is a simple `.bashrc` for the user.  Simple, nothing interesting.  I like
 to run inside an emacs shell window so control characters and highlighting are
@@ -98,8 +122,8 @@ Simple python scripts to verify that all the expected functionality is present
 and working.
 
 ### ut_gpu.py
-This demonstrates GPU capability and acceleration versus CPU.  There is an
-initial stall while the GPU is provisioned.
+This demonstrates GPU capability and acceleration versus CPU.  There *may* be an
+initial staill of several minutes while the GPU is provisioned.
 
 ### ut_ml.py
 This demonstrates that all the necessary python packages are installed and runs some
