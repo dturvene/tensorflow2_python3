@@ -2,8 +2,12 @@
 # this is a hack of tensorflow/tensorflow:latest-py3 (cpu.Dockerfile)
 # See ml.sh for usage
 
+# Need Ubuntu for GUI mapping
 FROM ubuntu:18.04 as base
+# FROM tensorflow/tensorflow:latest-py3 as base
+# FROM debian:10 as base
 ENV LANG C.UTF-8
+MAINTAINER dturvene@dahetral.com
 
 # hack so apt-get does not prompt user
 ENV DEBIAN_FRONTEND=noninteractive
@@ -36,22 +40,25 @@ RUN ${PIP} --no-cache-dir install --upgrade \
 RUN ln -s $(which ${PYTHON}) /usr/local/bin/python
 
 # install ML packages
-RUN ${PIP} install numpy matplotlib pillow
 # seaborn also pulls in pytz, pandas, scipy
-RUN ${PIP} install seaborn
+RUN ${PIP} install numpy \
+    matplotlib \
+    pillow \
+    seaborn
+
+# ~420M - tf2.1
+# ut_ml.py
 RUN ${PIP} install tensorflow
-RUN ${PIP} install tensorflow_hub
+# ut_tf.py
 RUN ${PIP} install tensorflow_datasets
+# ut_hub.py
+RUN ${PIP} install tensorflow_hub
 
 COPY bashrc.docker /etc/bash.bashrc
 
 # create user and group matching permissions for host volumes
-RUN addgroup --gid ${GROUPID} ${GROUP} && \
-    useradd --create-home \
-    --shell /bin/bash \
-    --uid ${USERID} \
-    --gid ${GROUPID} \
-    ${USER}
+RUN adduser --disabled-password --gecos '' ${USER} && \
+ adduser ${USER} sudo && \
+ echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-# stay as root for now. `su $USER` in guest.
-# USER ${USER}
+# set $USER on commandline or `su $USER`

@@ -1,10 +1,10 @@
 # Image for ML GPU work
 # See ml.sh for usage
 
-# use a tensorflow image, too much CUDA stuff to try
-# and copy
+# start with a tensorflow image, too much CUDA stuff to repeat
 FROM tensorflow/tensorflow:latest-gpu-py3 as base
 ENV LANG C.UTF-8
+MAINTAINER dturvene@dahetral.com
 
 # hack so apt-get does not prompt user
 ENV DEBIAN_FRONTEND=noninteractive
@@ -25,9 +25,11 @@ RUN apt-get update --fix-missing && \
     && rm -rf /var/lib/apt/lists/*
 
 # install ML packages
-RUN ${PIP} install numpy matplotlib pillow
 # seaborn also pulls in pytz, pandas, scipy
-RUN ${PIP} install seaborn
+RUN ${PIP} install numpy \
+    matplotlib \
+    pillow \
+    seaborn
 
 # this should already be installed by tensorflow/tensorflow:latest-gpu-py3
 RUN ${PIP} install tensorflow-gpu
@@ -37,12 +39,9 @@ RUN ${PIP} install tensorflow_datasets
 COPY bashrc.docker /etc/bash.bashrc
 
 # create user and group matching permissions for host volumes
-RUN addgroup --gid ${GROUPID} ${GROUP} && \
-    useradd --create-home \
-    --shell /bin/bash \
-    --uid ${USERID} \
-    --gid ${GROUPID} \
-    ${USER}
+RUN adduser --disabled-password --gecos '' ${USER} && \
+ adduser ${USER} sudo && \
+ echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-# stay as root for now. `su $USER` in guest.
-# USER ${USER}
+# set $USER on commandline or `su $USER`
+

@@ -63,7 +63,7 @@ trapexit() {
 # build docker image
 # example ML_IMG defs:
 #   ml_cpu:latest
-host_build()
+host_cpu_build()
 {
     if [ -z "$ML_IMG" ]; then
 	echo "\$ML_IMG needs to be set"
@@ -82,7 +82,7 @@ host_build()
 }
 
 # start docker image
-host_run()
+host_cpu_run()
 {
     DIR_REF=$HOME/GIT/tensorflow2_python3
     DIR_WORK=$HOME/GIT/python
@@ -103,11 +103,11 @@ host_run()
 	   --volume="$PWD:/home/ref" \
 	   --volume="$DIR_WORK:/home/work" \
 	   --volume="$DIR_DATA:/data" \
-	   --workdir=/home/work \
+	   --workdir=/home/ref \
 	   --rm -it $ML_IMG
 }
 
-host_commit()
+host_cpu_commit()
 {
     echo "commit container changes to a new image"
 
@@ -137,13 +137,6 @@ host_info()
     docker image history $ML_IMG
 
     docker image inspect $ML_IMG
-}
-
-host_save()
-{
-    echo "docker save"
-    echo "docker load"
-    echo "docker commit"
 }
 
 # push to docker hub
@@ -309,8 +302,10 @@ host_gpu_run()
 ###############################################################################
 # Guest setup and regression testing
 ###############################################################################
-guest_test()
+guest_cpu_test()
 {
+    echo "must be user1 for X11 display"
+    
     # unit test python ML packages
     echo "Tensorflow regression testing..."
     python ut_ml.py
@@ -321,12 +316,18 @@ guest_test()
     # comprehensive image training and validation on flower dataset
     # this takes 20min to download and train....
     FLOWERS_PREDICT_FILES=/data/flowers.predict
-    if [ ! -d $FLOWERS_PREDICT_FILES  ]; then
-	echo 'no $FLOWERS_PREDICT_FILES so cannot validate training'
-	exit -1
+    if [ -d $FLOWERS_PREDICT_FILES  ]; then
+	echo '$FLOWERS_PREDICT_FILES exists so training'
+	python ut_hub.py
     fi
-    echo "do not run ut_hub.py"
-    #python ut_hub.py
+
+    # label an image
+    # get datafiles into /data/demo_files
+    python3 label_image.py \
+	    -i /data/demo_files/grace_hopper.bmp \
+	    -m /data/demo_files/mobilenet_v1_1.0_224_quant.tflite \
+	    -l /data/demo_files/imagenet_labels.txt
+
 }
 
 guest_gpu_test()
