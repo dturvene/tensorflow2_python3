@@ -87,6 +87,7 @@ host_cpu_run()
     DIR_REF=$HOME/GIT/tensorflow2_python3
     DIR_WORK=$HOME/GIT/python
     DIR_DATA=$HOME/ML_DATA
+    USER=user1
     
     # host workspace, the git repo
     cd $DIR_REF
@@ -96,15 +97,33 @@ host_cpu_run()
 	docker images
 	exit -1
     fi
-    
+
+    echo "Starting $ML_IMG in $DIR_REF"
     docker run \
 	   --env="DISPLAY" \
 	   --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
 	   --volume="$PWD:/home/ref" \
 	   --volume="$DIR_WORK:/home/work" \
 	   --volume="$DIR_DATA:/data" \
+	   --volume="/opt/distros/ML/edgetpu:/home/edgetpu" \
 	   --workdir=/home/ref \
 	   --rm -it $ML_IMG
+}
+
+host_info()
+{
+    if [ -z "$ML_IMG" ]; then
+	echo "\$ML_IMG needs to be set"	
+	docker images
+	exit -1
+    fi
+
+    echo "### docker ps"
+    docker ps
+    echo "### docker history $ML_IMG"
+    docker image history $ML_IMG
+    echo "### docker inspect $ML_IMG"    
+    docker image inspect $ML_IMG
 }
 
 host_cpu_commit()
@@ -304,7 +323,10 @@ host_gpu_run()
 ###############################################################################
 guest_cpu_test()
 {
-    echo "must be user1 for X11 display"
+    if [[ $EUID -ne 1000 ]]; then
+	echo "must be user1 for X11 display"
+	exit 1
+    fi
     
     # unit test python ML packages
     echo "Tensorflow regression testing..."
@@ -320,14 +342,44 @@ guest_cpu_test()
 	echo '$FLOWERS_PREDICT_FILES exists so training'
 	python ut_hub.py
     fi
+}
 
-    # label an image
-    # get datafiles into /data/demo_files
+guest_tflite_test()
+{
+    # label objects in an image using tflite model
+    # For image, model/label files see
+    # https://github.com/tensorflow/tensorflow/tree/master/tensorflow/lite/examples/python/
+    echo "Run a tflite model..."
     python3 label_image.py \
 	    -i /data/demo_files/grace_hopper.bmp \
-	    -m /data/demo_files/mobilenet_v1_1.0_224_quant.tflite \
-	    -l /data/demo_files/imagenet_labels.txt
+	    -m /data/models/mobilenet_v1_1.0_224_quant.tflite \
+	    -l /data/models/imagenet_labels.txt	    
+}
 
+guest_tf2()
+{
+    imglist="/data/TEST_IMAGES/test-image1.jpg \
+             /data/TEST_IMAGES/dog-1210559_640.jpg \
+	     /data/TEST_IMAGES/cat-2536662_640.jpg \
+	     /data/TEST_IMAGES/siamese.cat-2068462_640.jpg \
+	     "	     
+
+    # reasonable except for cat
+    # M=mobilenet_v1_1.0_224_quant.tflite
+    # not as good
+    # M=mobilenet_v2_1.0_224_quant.tflite
+    
+    # label objects in an image using tflite model
+    # For image, model/label files see
+    # https://github.com/tensorflow/tensorflow/tree/master/tensorflow/lite/examples/python/
+    echo "strawberry Labrador/Golden Bordercollie siamese"
+    for img in $imglist
+    do
+	python3 label_image.py \
+		-i $img \
+    		-m  /data/models/$M \
+		-l /data/models/imagenet_labels.txt
+    done
 }
 
 guest_gpu_test()

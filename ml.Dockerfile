@@ -30,7 +30,11 @@ RUN apt-get update --fix-missing && \
 	    ${PYTHON} \
 	    ${PYTHON}-pip \
 	    ${PYTHON}-tk \
-    && rm -rf /var/lib/apt/lists/*
+	    apt-utils \
+	    sudo
+
+# don't do this in order to add packages at run-time
+# rm -rf /var/lib/apt/lists/*
 
 # install pip support
 RUN ${PIP} --no-cache-dir install --upgrade \
@@ -54,7 +58,8 @@ RUN ${PIP} install tensorflow_datasets
 # ut_hub.py
 RUN ${PIP} install tensorflow_hub
 
-COPY bashrc.docker /etc/bash.bashrc
+# update system-wide bashrc before creating user
+COPY bashrc.docker /etc/skel/.bashrc
 
 # create user and group matching permissions for host volumes
 RUN adduser --disabled-password --gecos '' ${USER} && \
