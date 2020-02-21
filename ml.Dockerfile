@@ -31,12 +31,15 @@ RUN apt-get update --fix-missing && \
 	    ${PYTHON}-pip \
 	    ${PYTHON}-tk \
 	    apt-utils \
+	    curl \
+	    wget \
 	    sudo
 
 # don't do this in order to add packages at run-time
+# otherwise need to do apt-get update to get lists
 # rm -rf /var/lib/apt/lists/*
 
-# install pip support
+# upgrade pip support
 RUN ${PIP} --no-cache-dir install --upgrade \
     pip \
     setuptools

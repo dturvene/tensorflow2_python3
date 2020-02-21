@@ -87,6 +87,7 @@ host_cpu_run()
     DIR_REF=$HOME/GIT/tensorflow2_python3
     DIR_WORK=$HOME/GIT/python
     DIR_DATA=$HOME/ML_DATA
+    DIR_ML=/opt/distros/ML
     USER=user1
     
     # host workspace, the git repo
@@ -105,7 +106,7 @@ host_cpu_run()
 	   --volume="$PWD:/home/ref" \
 	   --volume="$DIR_WORK:/home/work" \
 	   --volume="$DIR_DATA:/data" \
-	   --volume="/opt/distros/ML/edgetpu:/home/edgetpu" \
+	   --volume="/opt/distros/ML/google-coral/edgetpu:/home/edgetpu" \
 	   --workdir=/home/ref \
 	   --rm -it $ML_IMG
 }
@@ -156,22 +157,6 @@ host_info()
     docker image history $ML_IMG
 
     docker image inspect $ML_IMG
-}
-
-# push to docker hub
-# https://ropenscilabs.github.io/r-docker-tutorial/04-Dockerhub.html
-# https://docs.docker.com/docker-hub/builds/
-host_push()
-{
-    HUB_IMG=dturvene/tensorflow2_python3:hub_tfds
-
-    # locate tag of stable image
-    docker images
-    docker tag 0b24e14db02d $HUB_IMG
-    docker images
-
-    echo "push $HUB_IMG... long time"
-    docker push $HUB_IMG
 }
 
 #####################################################################
@@ -344,41 +329,90 @@ guest_cpu_test()
     fi
 }
 
+host_tflite_data()
+{
+    echo "get test image"
+
+    cd /opt/distros/ML/google-coral/edgetpu/test_data
+
+    ls -l grace_hopper.bmp
+
+    echo "get tflite models"
+    ls -l mobilenet_v1_1.0_224_quant.tflite
+    ls -l mobilenet_v2_1.0_224_quant.tflite
+    
+    echo "get labels"
+    # 1000
+    ls -l imagenet_labels.txt
+    # 90
+    ls -l coco_labels.txt
+
+}
+
+host_tf_models()
+{
+    cd ~/ML_DATA/models
+    wget https://tfhub.dev/google/imagenet/inception_v1/feature_vector/1?tf-hub-format=compressed -O inception_v1.tgz
+    mkdir -p inception_v1/feature_vector/1
+    tar -zxvf ../../../inception_v1.tgz
+
+    # get tag_set and signature_def names for tfhub model
+    saved_model_cli show --dir /data/models/inception_v1/feature_vector/1
+    saved_model_cli show --dir /data/models/inception_v1/feature_vector/1 --tag_set train
+    # saved_model_cli show --dir /data/models/inception_v1/feature_vector/1 --tag_set train --signature_def default
+    saved_model_cli show --dir /data/models/inception_v1/feature_vector/1 --tag_set train --signature_def image_feature_vector
+
+    echo "local saved, see flg1.py"
+    saved_model_cli show --dir /data/dflg1/1 --tag_set serve --signature_def serving_default
+
+    # works
+    wget https://tfhub.dev/google/imagenet/mobilenet_v2_140_224/feature_vector/4?tf-hub-format=compressed -O mobilenet_v2_140_224.tgz
+    wget https://tfhub.dev/google/imagenet/mobilenet_v1_025_224/feature_vector/4?tf-hub-format=compressed -O mobilenet_v1_025_224.tgz
+
+    saved_model_cli show --dir /data/models/mobilenet_v2_035_128/4 --all
+    # __saved_model_init_op is a noop placeholder
+
+    saved_model_cli show --dir /data/models/mobilenet_v1_025_224/4 --all
+}
+
 guest_tflite_test()
 {
     # label objects in an image using tflite model
-    # For image, model/label files see
-    # https://github.com/tensorflow/tensorflow/tree/master/tensorflow/lite/examples/python/
-    echo "Run a tflite model..."
+    # 0.919720: 653  military uniform, 0.017762: 907  Windsor tie
+    I=/home/edgetpu/test_data/grace_hopper.bmp
+    # M=/home/edgetpu/test_data/inception_v2_224_quant.tflite
+    # .89 653 military uniform
+    M=/home/edgetpu/test_data/mobilenet_v2_1.0_224_quant.tflite
+    # M=/home/edgetpu/test_data/mobilenet_v1_0.75_192_quant.tflite
+    L=/home/edgetpu/test_data/imagenet_labels.txt
+    echo "Run a tflite model ${M}"
     python3 label_image.py \
-	    -i /data/demo_files/grace_hopper.bmp \
-	    -m /data/models/mobilenet_v1_1.0_224_quant.tflite \
-	    -l /data/models/imagenet_labels.txt	    
+	    -i ${I} \
+	    -m ${M} \
+	    -l ${L}
 }
 
 guest_tf2()
 {
-    imglist="/data/TEST_IMAGES/test-image1.jpg \
+    imglist="/data/TEST_IMAGES/strawberry.jpg \
              /data/TEST_IMAGES/dog-1210559_640.jpg \
 	     /data/TEST_IMAGES/cat-2536662_640.jpg \
 	     /data/TEST_IMAGES/siamese.cat-2068462_640.jpg \
-	     "	     
-
-    # reasonable except for cat
-    # M=mobilenet_v1_1.0_224_quant.tflite
-    # not as good
-    # M=mobilenet_v2_1.0_224_quant.tflite
+	     /data/TEST_IMAGES/animals-2198994_640.jpg \
+	     "
     
-    # label objects in an image using tflite model
-    # For image, model/label files see
-    # https://github.com/tensorflow/tensorflow/tree/master/tensorflow/lite/examples/python/
+    # M=/home/edgetpu/test_data/mobilenet_v2_1.0_224_quant.tflite
+    # M=/home/edgetpu/test_data/inception_v2_224_quant.tflite
+    M=/data/models/inception_v4.tflite
+    L=/home/edgetpu/test_data/imagenet_labels.txt
     echo "strawberry Labrador/Golden Bordercollie siamese"
-    for img in $imglist
+    for I in $imglist
     do
+	echo "*** label $img"
 	python3 label_image.py \
-		-i $img \
-    		-m  /data/models/$M \
-		-l /data/models/imagenet_labels.txt
+		-i ${I} \
+    		-m ${M} \
+		-l ${L} 2> /dev/null
     done
 }
 
@@ -397,6 +431,50 @@ guest_gpu_test()
 
     python ut_ml.py
     python ut_tf.py
+}
+
+###########################################################
+# Docker image management
+###########################################################
+
+# push to docker hub
+# https://ropenscilabs.github.io/r-docker-tutorial/04-Dockerhub.html
+# https://docs.docker.com/docker-hub/builds/
+host_push()
+{
+    HUB_IMG=dturvene/tensorflow2_python3:hub_tfds
+
+    # locate tag of stable image
+    docker images
+    docker tag 0b24e14db02d $HUB_IMG
+    docker images
+
+    echo "push $HUB_IMG... long time"
+    docker push $HUB_IMG
+}
+
+save_image()
+{
+    cd /opt/distros/docker-images
+    
+    echo "save $ML_IMG.tar"
+    docker save -o $ML_IMG.tar $ML_IMG
+
+    # ~50% smaller
+    gzip $ML_IMG.tar
+}
+
+load_image()
+{
+    cd /opt/distros/docker-images
+    
+    echo "load $ML_IMG.tar"
+    gunzip $ML_IMG.tar.gz
+    docker load -i $ML_IMG.tar
+
+    docker images
+
+    echo "regression test: host_cpu_run, su user1, guest_cpu_test"
 }
 
 ###########################################

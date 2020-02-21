@@ -59,6 +59,8 @@ if __name__ == '__main__':
       help='input standard deviation')
   args = parser.parse_args()
 
+  tf.config.experimental.set_visible_devices([], 'GPU')
+
   interpreter = tf.lite.Interpreter(model_path=args.model_file)
   interpreter.allocate_tensors()
 
