@@ -106,7 +106,7 @@ host_cpu_run()
 	   --volume="$PWD:/home/ref" \
 	   --volume="$DIR_WORK:/home/work" \
 	   --volume="$DIR_DATA:/data" \
-	   --volume="/opt/distros/ML/google-coral/edgetpu:/home/edgetpu" \
+	   --volume="/opt/distros/ML/google-coral:/home/coral" \
 	   --workdir=/home/ref \
 	   --rm -it $ML_IMG
 }
