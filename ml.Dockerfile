@@ -22,9 +22,9 @@ ARG USERID=1000
 ARG GROUPID=1000
 
 # update base packages (based on cpu.Dockerfile)
-# install tools
-# install python and pip
-# for X11 display add the python TK package
+# install python, pip, python-tk (for X11 display) and tools
+# add miminal gstreamer debian packages
+#  see https://gstreamer.freedesktop.org/documentation/installing/on-linux.html
 RUN apt-get update --fix-missing && \
     apt-get install -y \
 	    ${PYTHON} \
@@ -33,10 +33,15 @@ RUN apt-get update --fix-missing && \
 	    apt-utils \
 	    curl \
 	    wget \
-	    sudo
+	    sudo \
+	    gstreamer1.0-0 \
+	    gstreamer1.0-plugins-base \
+	    gstreamer1.0-plugins-good \
+	    gstreamer1.0-doc \
+	    gstreamer1.0-tools
 
 # don't do this in order to add packages at run-time
-# otherwise need to do apt-get update to get lists
+# otherwise need to do `apt-get update` to pull lists
 # rm -rf /var/lib/apt/lists/*
 
 # upgrade pip support
@@ -64,9 +69,12 @@ RUN ${PIP} install tensorflow_hub
 # update system-wide bashrc before creating user
 COPY bashrc.docker /etc/skel/.bashrc
 
-# create user and group matching permissions for host volumes
+# create user and group to have same ID as the host user
+# add to sudoers for in-container work
+# add to video group to use /dev/video0 webcam
 RUN adduser --disabled-password --gecos '' ${USER} && \
  adduser ${USER} sudo && \
- echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+ echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
+ usermod -a -G video ${USER}
 
-# set $USER on commandline or `su $USER`
+# in container, set $USER on commandline or `su $USER`

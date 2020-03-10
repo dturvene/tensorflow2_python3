@@ -99,15 +99,18 @@ host_cpu_run()
 	exit -1
     fi
 
+    # for video to work, must map device and --net=host
     echo "Starting $ML_IMG in $DIR_REF"
     docker run \
 	   --env="DISPLAY" \
+	   --device=/dev/video0:/dev/video0 \
 	   --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
 	   --volume="$PWD:/home/ref" \
 	   --volume="$DIR_WORK:/home/work" \
 	   --volume="$DIR_DATA:/data" \
 	   --volume="/opt/distros/ML/google-coral:/home/coral" \
 	   --workdir=/home/ref \
+	   --net=host \
 	   --rm -it $ML_IMG
 }
 
@@ -312,6 +315,9 @@ guest_cpu_test()
 	echo "must be user1 for X11 display"
 	exit 1
     fi
+
+    # check for gstreamer 1.0 python bindings
+    python -c "import gi; gi.require_version('Gst', '1.0')"
     
     # unit test python ML packages
     echo "Tensorflow regression testing..."
