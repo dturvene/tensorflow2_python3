@@ -63,7 +63,7 @@ trapexit() {
 # build docker image
 # example ML_IMG defs:
 #   ml_cpu:latest
-host_cpu_build()
+host_cpu_b()
 {
     if [ -z "$ML_IMG" ]; then
 	echo "\$ML_IMG needs to be set"
@@ -82,12 +82,13 @@ host_cpu_build()
 }
 
 # start docker image
-host_cpu_run()
+host_cpu_r()
 {
     DIR_REF=$HOME/GIT/tensorflow2_python3
     DIR_WORK=$HOME/GIT/python
     DIR_DATA=$HOME/ML_DATA
     DIR_ML=/opt/distros/ML
+    DIR_GST=/opt/distros/GST
     USER=user1
     
     # host workspace, the git repo
@@ -100,6 +101,7 @@ host_cpu_run()
     fi
 
     # for video to work, must map device and --net=host
+    # publish 8080
     echo "Starting $ML_IMG in $DIR_REF"
     docker run \
 	   --env="DISPLAY" \
@@ -108,9 +110,11 @@ host_cpu_run()
 	   --volume="$PWD:/home/ref" \
 	   --volume="$DIR_WORK:/home/work" \
 	   --volume="$DIR_DATA:/data" \
-	   --volume="/opt/distros/ML/google-coral:/home/coral" \
+	   --volume="$DIR_ML:/home/ml" \
+	   --volume="$DIR_GST:/home/gst" \
 	   --workdir=/home/ref \
 	   --net=host \
+	   --publish 8080:8080 \
 	   --rm -it $ML_IMG
 }
 
@@ -307,34 +311,8 @@ host_gpu_run()
 }
 
 ###############################################################################
-# Guest setup and regression testing
+# Host config
 ###############################################################################
-guest_cpu_test()
-{
-    if [[ $EUID -ne 1000 ]]; then
-	echo "must be user1 for X11 display"
-	exit 1
-    fi
-
-    # check for gstreamer 1.0 python bindings
-    python -c "import gi; gi.require_version('Gst', '1.0')"
-    
-    # unit test python ML packages
-    echo "Tensorflow regression testing..."
-    python ut_ml.py
-    
-    python ut_tf.py
-
-    # tensorflow, hub and pre-trained model
-    # comprehensive image training and validation on flower dataset
-    # this takes 20min to download and train....
-    FLOWERS_PREDICT_FILES=/data/flowers.predict
-    if [ -d $FLOWERS_PREDICT_FILES  ]; then
-	echo '$FLOWERS_PREDICT_FILES exists so training'
-	python ut_hub.py
-    fi
-}
-
 host_tflite_data()
 {
     echo "get test image"
@@ -352,7 +330,6 @@ host_tflite_data()
     ls -l imagenet_labels.txt
     # 90
     ls -l coco_labels.txt
-
 }
 
 host_tf_models()
@@ -381,25 +358,92 @@ host_tf_models()
     saved_model_cli show --dir /data/models/mobilenet_v1_025_224/4 --all
 }
 
+# git clone the gstreamer python plugin source
+# this needs to be built and installed in the guest ONCE
+# after docker container start (guest_gst_config)
+host_gstreamer()
+{
+    cd /opt/distros/ML
+    
+    # on host get python bindings and checkout tag
+    git clone https://gitlab.freedesktop.org/gstreamer/gst-python.git
+    git checkout 1.14.5
+}
+
+###############################################################################
+# Guest config, setup and regression testing
+###############################################################################
+# set up gstreamer on guest
+# We need to build and install the gstreamer python plugin glue
+# then check it is installed (gst-inspect-1.0 python)
+guest_gst_config()
+{
+    echo "build gst-python from source"
+    cd /home/ml/gst-python
+    export PYTHON=/usr/bin/python3
+    ./autogen.sh --disable-gtk-doc --noconfigure
+    # ./configure --with-libpython-dir=/usr/lib/x86_64-linux-gnu
+    ./configure --prefix=/usr --with-libpython-dir=/usr/lib/x86_64-linux-gnu
+    make
+    sudo make install
+
+    echo "check install"
+    export GST_PLUGIN_PATH=/usr/lib/gstreamer-1.0
+    gst-inspect-1.0 python
+}
+
+guest_cpu_test()
+{
+    if [[ $EUID -ne 1000 ]]; then
+	echo "must be user1 for X11 display"
+	exit 1
+    fi
+
+    # check for gstreamer 1.0 python bindings
+    python -c "import gi; gi.require_version('Gst', '1.0')"
+    
+    # unit test python ML packages
+    echo "Tensorflow regression testing..."
+    python ut_ml.py
+    
+    python ut_tf.py
+
+    # tensorflow, hub and pre-trained model
+    # comprehensive image training and validation on flower dataset
+    # this takes 20min to download and train....
+    FLOWERS_PREDICT_FILES=/data/flowers.predict
+    if [ -d $FLOWERS_PREDICT_FILES  ]; then
+	echo '$FLOWERS_PREDICT_FILES exists so training'
+	python ut_hub.py
+    fi
+}
+
 guest_tflite_test()
 {
+    export TPU=/home/ml/google-coral/edgetpu
+    
     # label objects in an image using tflite model
     # 0.919720: 653  military uniform, 0.017762: 907  Windsor tie
-    I=/home/edgetpu/test_data/grace_hopper.bmp
+    I=$TPU/test_data/grace_hopper.bmp
+    # I=/home/work/gstreamer/img-x.png
     # M=/home/edgetpu/test_data/inception_v2_224_quant.tflite
     # .89 653 military uniform
-    M=/home/edgetpu/test_data/mobilenet_v2_1.0_224_quant.tflite
+    M=$TPU/test_data/mobilenet_v2_1.0_224_quant.tflite
     # M=/home/edgetpu/test_data/mobilenet_v1_0.75_192_quant.tflite
-    L=/home/edgetpu/test_data/imagenet_labels.txt
+    L=$TPU/test_data/imagenet_labels.txt
     echo "Run a tflite model ${M}"
+
+    cd /home/ml/tensorflow/tensorflow/lite/examples/python
     python3 label_image.py \
 	    -i ${I} \
 	    -m ${M} \
 	    -l ${L}
 }
 
-guest_tf2()
+guest_tf2_images()
 {
+    export TPU=/home/ml/google-coral/edgetpu
+    
     imglist="/data/TEST_IMAGES/strawberry.jpg \
              /data/TEST_IMAGES/dog-1210559_640.jpg \
 	     /data/TEST_IMAGES/cat-2536662_640.jpg \
@@ -407,19 +451,53 @@ guest_tf2()
 	     /data/TEST_IMAGES/animals-2198994_640.jpg \
 	     "
     
-    # M=/home/edgetpu/test_data/mobilenet_v2_1.0_224_quant.tflite
-    # M=/home/edgetpu/test_data/inception_v2_224_quant.tflite
-    M=/data/models/inception_v4.tflite
-    L=/home/edgetpu/test_data/imagenet_labels.txt
-    echo "strawberry Labrador/Golden Bordercollie siamese"
+    M=$TPU/test_data/mobilenet_v2_1.0_224_quant.tflite
+    # M=$TPU/test_data/inception_v2_224_quant.tflite
+    L=$TPU/test_data/imagenet_labels.txt
+
+    cd /home/ml/tensorflow/tensorflow/lite/examples/python
     for I in $imglist
     do
-	echo "*** label $img"
+	echo "*** label $I"
 	python3 label_image.py \
 		-i ${I} \
     		-m ${M} \
 		-l ${L} 2> /dev/null
     done
+}
+
+guest_tflite_image()
+{
+    export TPU=/home/ml/google-coral/edgetpu
+    
+    #I=/home/work/gstreamer/img-rgb.png
+    #I=/data/TEST_IMAGES/strawberry.jpg
+    I=/home/ml/google-coral/edgetpu/test_data/grace_hopper.bmp
+
+    # only size-1 arrays can be converted to Python scalars
+    #M=/data/GST_TEST/detect.tflite
+    #L=/data/GST_TEST/labelmap.txt
+    M=$TPU/test_data/mobilenet_v2_1.0_224_quant.tflite
+    L=$TPU/test_data/imagenet_labels.txt
+
+    #cd /home/ml/tensorflow/tensorflow/lite/examples/python
+    cd /home/ref
+    echo "*** label $I"
+    python label_image.py \
+	    -i ${I} \
+    	    -m ${M} \
+	    -l ${L}
+}
+
+guest_gst_plugin_test()
+{
+    echo "check custom python plugins"
+    cd /home/work/gstreamer
+    # all python plugins are under $PWD/plugins/python
+    export GST_PLUGIN_PATH=$GST_PLUGIN_PATH:$PWD/plugins
+    
+    gst-inspect-1.0 identity_py
+    GST_DEBUG=python:4 gst-launch-1.0 fakesrc num-buffers=10 ! identity_py ! fakesink
 }
 
 guest_gpu_test()

@@ -37,7 +37,7 @@ def ut_plt():
     '''
     test plt display of images
     '''
-    imgfiles=['test-image1.jpg', 'test-image2.png']
+    imgfiles=['strawberry.jpg', 'beagle-pup.png']
 
     fig = plt.figure(figsize=(8, 12))
     rows=2

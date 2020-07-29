@@ -25,6 +25,7 @@ ARG GROUPID=1000
 # install python, pip, python-tk (for X11 display) and tools
 # add miminal gstreamer debian packages
 #  see https://gstreamer.freedesktop.org/documentation/installing/on-linux.html
+# add gstreamer python3, introspection, plugin dev
 RUN apt-get update --fix-missing && \
     apt-get install -y \
 	    ${PYTHON} \
@@ -36,9 +37,18 @@ RUN apt-get update --fix-missing && \
 	    sudo \
 	    gstreamer1.0-0 \
 	    gstreamer1.0-plugins-base \
+	    gstreamer1.0-plugins-base-apps \
 	    gstreamer1.0-plugins-good \
+	    gstreamer1.0-plugins-bad \
+	    gstreamer1.0-plugins-ugly \
+	    gstreamer1.0-libav \
 	    gstreamer1.0-doc \
-	    gstreamer1.0-tools
+	    gstreamer1.0-tools \
+	    ${PYTHON}-gst-1.0 \
+	    ${PYTHON}-gi \
+	    python-gi-dev \
+	    python-gobject \
+	    libgstreamer-plugins-base1.0-dev
 
 # don't do this in order to add packages at run-time
 # otherwise need to do `apt-get update` to pull lists
@@ -56,7 +66,8 @@ RUN ln -s $(which ${PYTHON}) /usr/local/bin/python
 RUN ${PIP} install numpy \
     matplotlib \
     pillow \
-    seaborn
+    seaborn \
+    websockets
 
 # ~420M - tf2.1
 # ut_ml.py
@@ -65,6 +76,10 @@ RUN ${PIP} install tensorflow
 RUN ${PIP} install tensorflow_datasets
 # ut_hub.py
 RUN ${PIP} install tensorflow_hub
+# https://www.tensorflow.org/lite/guide/python
+# to /usr/lib/python3.6/dist-packages
+# test with ml.sh:guest_tflite_image
+RUN ${PIP} install https://dl.google.com/coral/python/tflite_runtime-2.1.0.post1-cp36-cp36m-linux_x86_64.whl
 
 # update system-wide bashrc before creating user
 COPY bashrc.docker /etc/skel/.bashrc

@@ -24,13 +24,13 @@ import numpy as np
 
 from PIL import Image
 
-import tensorflow as tf # TF2
-
+# https://www.tensorflow.org/lite/guide/python
+# import tensorflow as tf # TF2
+import tflite_runtime.interpreter as tflite
 
 def load_labels(filename):
   with open(filename, 'r') as f:
     return [line.strip() for line in f.readlines()]
-
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
@@ -59,9 +59,7 @@ if __name__ == '__main__':
       help='input standard deviation')
   args = parser.parse_args()
 
-  tf.config.experimental.set_visible_devices([], 'GPU')
-
-  interpreter = tf.lite.Interpreter(model_path=args.model_file)
+  interpreter = tflite.Interpreter(model_path=args.model_file)
   interpreter.allocate_tensors()
 
   input_details = interpreter.get_input_details()
