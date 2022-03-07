@@ -37,7 +37,7 @@ inspecting the Tensorflow `gpu.Dockerfile` demonstrated that there are a number
 of logistics to replicate including:
 
 * load all the cuda apt packages,
-* LD_LIBRARY_PATH and dynamic linking setup,
+* `LD_LIBRARY_PATH` and dynamic linking setup,
 * load tensorflow-gpu
 
 # Repo Layout
@@ -88,11 +88,11 @@ user1:1> ./ml.sh guest_gpu_test
 There are a number of functions in `ml.sh` to set up the nvidia CUDA libraries
 and build a docker GPU image.  These only need to be done once.
 
-* host_install_nvidia: install the lastest nvidia driver for the detected GPU,
+* `host_install_nvidia`: install the lastest nvidia driver for the detected GPU,
   and switch to the intel display for graphics.  This requires a reboot.
-* host_gpu_probe: test the nvidia GPU
-* host_gpu_setup: install the necessary APT packages to run a GPU docker image
-* host_gpu_build: build a custom GPU docker image use a base of
+* `host_gpu_probe`: test the nvidia GPU
+* `host_gpu_setup`: install the necessary APT packages to run a GPU docker image
+* `host_gpu_build`: build a custom GPU docker image use a base of
   `tensorflow/tensorflow:latest-gpu-py3`.  Name the image using the `GPU_IMG`
   environment variable.
   
@@ -100,11 +100,11 @@ and build a docker GPU image.  These only need to be done once.
 There is one host-side function to start a container for `GPU_IMG`.  On exit,
 the container will be removed.
 
-* host_gpu_run: start a container for `GPU_IMG`.
+* `host_gpu_run`: start a container for `GPU_IMG`.
 
 There is one guest-side function to regresstion test GPU and X11 functionality.
 
-* guest_gpu_test: regression test a GPU-enabled docker container. 
+* `guest_gpu_test`: regression test a GPU-enabled docker container. 
 
 ## ml.Dockerfile
 This is the dockerfile used to build an image using only the CPU. See
