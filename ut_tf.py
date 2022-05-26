@@ -3,6 +3,9 @@
 unit test for packages and keras support
 
 * https://www.tensorflow.org/tutorials/keras/regression
+
+220401: a lot of code has been updated and streamlined
+
 """
 
 import sys
@@ -44,6 +47,13 @@ Origin: 1=USA, 2=Europe, 3=Japan
     return(raw_dataset)
 
 def getdata():
+    '''
+    retrieve the raw dataframe
+    clean
+    convert origin strings to one-hot fields
+    split df into train and test
+    get training stats
+    '''
 
     # Pandas DataFrame
     rd = get_rawdata()
@@ -56,7 +66,7 @@ def getdata():
     print('isna:\n{}'.format(dataset.isna().sum()))
     dataset = dataset.dropna()
 
-    # get origin column and convert to one-hot fields
+    # create USA/Europe/Japan one-hot columns
     origin = dataset.pop('Origin')
     dataset['USA'] = (origin == 1)*1.0
     dataset['Europe'] = (origin == 2)*1.0
@@ -70,7 +80,7 @@ def getdata():
     test_dataset = dataset.drop(train_dataset.index)
 
     # get useful statistics about training set
-    # removing the label (MPG)
+    # removing the label (MPG) because it is the target
     # transpose: flip rows/columns so each feature is on a row
     train_stats = train_dataset.describe()
     train_stats.pop("MPG")
@@ -166,12 +176,19 @@ def plot_history(history):
 
 def ut_keras_br():
     '''
-    https://github.com/tensorflow/docs/blob/master/site/en/r2/tutorials/keras/basic_regression.ipynb
+    220401: bad link
+    * https://github.com/tensorflow/docs/blob/master/site/en/r2/tutorials/keras/basic_regression.ipynb
+    moved to 
+    * https://www.tensorflow.org/tutorials/keras/regression
+    * https://github.com/tensorflow/docs/blob/master/site/en/tutorials/keras/regression.ipynb
     '''
-    # training, test, training stats PD DataFrame
+    # training, test, training stats PD DataFrames
     (tr_data, ts_data, tr_stats) = getdata()
 
-    view_sns(ts_data)
+    # save sns png file
+    # view_sns(ts_data)
+
+    # bp()
 
     # remove MPG column and create in separate label objects
     print('remove MPG')
@@ -202,7 +219,7 @@ def ut_keras_br():
     print('\n')
 
     # show plot of epochs to MAE and MSE
-    plot_history(history)
+    # plot_history(history)
 
     # now run model on normalized test dataset and see loss
     loss, mae, mse = model.evaluate(ts_norm, ts_labels, verbose=0)
@@ -210,6 +227,7 @@ def ut_keras_br():
 
     # now use model to predict MPG for test set and compare with real labels
     ts_preds = model.predict(ts_norm).flatten()
+    # bp()
     plt.scatter(ts_labels, ts_preds)
     plt.xlabel('True Values [MPG]')
     plt.ylabel('Predictions [MPG]')
@@ -288,7 +306,7 @@ class Ut(unittest.TestCase):
     #@unittest.skip('good')
     def test2(self):
         ut_keras_br()
-    #@unittest.skip('good')        
+    @unittest.skip('good')        
     def test3(self):
         ut_tfbeg()
 

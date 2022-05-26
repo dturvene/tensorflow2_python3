@@ -1,18 +1,24 @@
 #!/bin/bash
 # bash function library for ML docker support
+#
+# * .bashrc for current ML_IMG setting
+# * host_cpu_r: start a docker container for ML testing
+# * client_install.sh:linger_clone for cloning this repo
+# * gitrepo.sh:github_fix_push: `sign_and_send_pubkey` error
 
 dstamp=$(date +%y%m%d)
 tstamp='date +%H%M%S'
 default_func=usage
 
 # Defaults for options
-M_DEF="placeholder"
+ML_WORKPATH=$HOME/ggit/tf2_python3
 
 usage() {
 
     printf "\nUsage: $0 [options] func [func]+"
     printf "\n Valid opts:\n"
-    printf "\t-e M_DEF: override env var (default ${M_DEF})\n"
+    printf "\t-i ML_IMG: docker image (default ${ML_IMG})\n"
+    printf "\t-e ML_WORKPATH: env var (default ${ML_WORKPATH})\n"
     printf "\n Valid funcs:\n"
 
     # display available function calls
@@ -65,27 +71,40 @@ trapexit() {
 #   ml_cpu:latest
 host_cpu_b()
 {
+    # need to be here for small directory cache size
+    # and copy files to guest
+    cd $ML_WORKPATH
+    
     if [ -z "$ML_IMG" ]; then
 	echo "\$ML_IMG needs to be set"
 	docker images
 	exit -1
     fi
-    
-    # need to be here for small directory cache size
-    # and copy files to guest
-    cd ~/GIT/tensorflow2_python3
 
+    echo "$PWD: Building new ML_IMG=$ML_IMG"
+    t_prompt
+
+    echo "see what is running"
+    docker ps -a
+    # remove current container and image to build anew
+    # docker rm $CID
+    # docker rmi $ML_IMG
+    
     echo "Building $ML_IMG in $PWD"
     docker build -f ml.Dockerfile -t $ML_IMG .
 
+    echo "Show all images"
     docker images
 }
 
 # start docker image
 host_cpu_r()
 {
-    DIR_REF=$HOME/GIT/tensorflow2_python3
-    DIR_WORK=$HOME/GIT/python
+    cd $ML_WORKPATH
+    
+    # 
+    DIR_REF=$ML_WORKPATH
+    DIR_PYTHON=$HOME/ggit/python.git
     DIR_DATA=$HOME/ML_DATA
     DIR_ML=/opt/distros/ML
     DIR_GST=/opt/distros/GST
@@ -93,6 +112,8 @@ host_cpu_r()
     
     # host workspace, the git repo
     cd $DIR_REF
+    printf "$PWD: running\n$(docker images $ML_IMG)\n"
+    t_prompt
 
     if [ -z "$ML_IMG" ]; then
 	echo "\$ML_IMG needs to be set"	
@@ -101,21 +122,23 @@ host_cpu_r()
     fi
 
     # for video to work, must map device and --net=host
-    # publish 8080
+    # 220307: publish 8080, WARNING Published ports are discarded
     echo "Starting $ML_IMG in $DIR_REF"
     docker run \
 	   --env="DISPLAY" \
 	   --device=/dev/video0:/dev/video0 \
 	   --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
 	   --volume="$PWD:/home/ref" \
-	   --volume="$DIR_WORK:/home/work" \
+	   --volume="$DIR_PYTHON:/home/work" \
 	   --volume="$DIR_DATA:/data" \
 	   --volume="$DIR_ML:/home/ml" \
 	   --volume="$DIR_GST:/home/gst" \
 	   --workdir=/home/ref \
 	   --net=host \
-	   --publish 8080:8080 \
 	   --rm -it $ML_IMG
+
+    # run guest_cpu_test
+
 }
 
 host_info()
@@ -286,8 +309,8 @@ host_gpu_build()
 
 host_gpu_run()
 {
-    DIR_REF=$HOME/GIT/tensorflow2_python3
-    DIR_WORK=$HOME/GIT/python
+    DIR_REF=$ML_WORKPATH    
+    DIR_PYTHON=$HOME/ggit/python.git
     DIR_DATA=$HOME/ML_DATA
     
     # host workspace, the git repo
@@ -392,20 +415,30 @@ guest_gst_config()
     gst-inspect-1.0 python
 }
 
+# after image build - run this in guest to validate functionality
+# See docker.sh:conn_shell for a second bash shell
 guest_cpu_test()
 {
+    # manually check with $(id)
     if [[ $EUID -ne 1000 ]]; then
 	echo "must be user1 for X11 display"
 	exit 1
     fi
 
+    # check guest distro - see docker.sh:guest_linux
+    cat /proc/version
+    cat /etc/os-release
+    python --version
+
     # check for gstreamer 1.0 python bindings
-    python -c "import gi; gi.require_version('Gst', '1.0')"
+    # python -c "import gi; gi.require_version('Gst', '1.0')"
+
+    echo "$PWD: Run Python Tensorflow and Web tests"
+    t_prompt
     
     # unit test python ML packages
     echo "Tensorflow regression testing..."
-    python ut_ml.py
-    
+    # python ut_ml.py
     python ut_tf.py
 
     # tensorflow, hub and pre-trained model
@@ -416,6 +449,20 @@ guest_cpu_test()
 	echo '$FLOWERS_PREDICT_FILES exists so training'
 	python ut_hub.py
     fi
+
+    # test asyncio
+    cd /home/work
+
+    # 220319: need to rebuild image with these packages...
+    sudo pip3 install asyncio aiohttp websockets
+    # t_cbp_feed appends to mltest.dat, best to remove if collecting over multiple hours
+    # basket of cryptos SIGINT to exit
+    ./work.py -t 1 -f /data/mltest.dat
+    # t_display, read file and plot prod and side
+    ./work.py -t 2 -f /data/mltest.dat
+    # gemini websocket feed, SIGINT to exit
+    # sudo pip3 install websocket
+    # ./p3_async.py -f 6
 }
 
 guest_tflite_test()

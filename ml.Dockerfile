@@ -1,13 +1,16 @@
 # Image for ML work
 # this is a hack of tensorflow/tensorflow:latest-py3 (cpu.Dockerfile)
 # See ml.sh for usage
+# 220308: build with u20.04 3.37GB image
 
 # Need Ubuntu for GUI mapping
-FROM ubuntu:18.04 as base
+# FROM ubuntu:18.04 as base
+# 220308 use 20.04 for updated python
+FROM ubuntu:20.04 as base
 # FROM tensorflow/tensorflow:latest-py3 as base
 # FROM debian:10 as base
 ENV LANG C.UTF-8
-MAINTAINER dturvene@dahetral.com
+MAINTAINER dturvene@gmail.com
 
 # hack so apt-get does not prompt user
 ENV DEBIAN_FRONTEND=noninteractive
@@ -67,9 +70,13 @@ RUN ${PIP} install numpy \
     matplotlib \
     pillow \
     seaborn \
-    websockets
+    websockets \
+    asyncio \
+    aiohttp \
 
+# https://www.tensorflow.org/install
 # ~420M - tf2.1
+# 220308 20.04, tf2.8 
 # ut_ml.py
 RUN ${PIP} install tensorflow
 # ut_tf.py
@@ -78,8 +85,11 @@ RUN ${PIP} install tensorflow_datasets
 RUN ${PIP} install tensorflow_hub
 # https://www.tensorflow.org/lite/guide/python
 # to /usr/lib/python3.6/dist-packages
+
+# 220308: obsolete for updated
+# https://www.tensorflow.org/lite/guide/python
 # test with ml.sh:guest_tflite_image
-RUN ${PIP} install https://dl.google.com/coral/python/tflite_runtime-2.1.0.post1-cp36-cp36m-linux_x86_64.whl
+# RUN ${PIP} install https://dl.google.com/coral/python/tflite_runtime-2.1.0.post1-cp36-cp36m-linux_x86_64.whl
 
 # update system-wide bashrc before creating user
 COPY bashrc.docker /etc/skel/.bashrc
