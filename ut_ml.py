@@ -33,6 +33,29 @@ def plt_setup():
 
     plt.style.use(['ggplot'])
 
+def ut_tensor():
+    '''
+    work with tensors (ml-glossary.md#tensor)
+
+    https://www.tensorflow.org/guide/tensor
+    https://www.tensorflow.org/api_docs/python/tf/Tensor
+
+    '''
+
+    print(f'tensor work')
+
+    print('create a tensor')
+    tf.Tensor([[1.0, 2.0], [3.0, 4.0]], shape=(2, 2), dtype=float32)
+    
+    print('compute some values using a tensor')
+    c = tf.constant([[1.0, 2.0], [3.0, 4.0]])
+    d = tf.constant([[1.0, 1.0], [0.0, 1.0]])
+    e = tf.matmul(c, d)
+    print(e)
+
+    # bp()
+
+
 def ut_plt():
     '''
     test plt display of images
@@ -58,16 +81,17 @@ class Ut(unittest.TestCase):
         plt_setup()
     def tearDown(self):
         pass
-    #@unittest.skip('good')
+    @unittest.skip('good')
     def test1(self):
         '''basic sanity test'''
         print(tf.reduce_sum(tf.random.normal([1000,1000])))
-    #@unittest.skip('good')        
+    @unittest.skip('good')        
     def test2(self):
+        '''plot images using matplotlib'''
         ut_plt()
-    @unittest.skip('good')
+    # @unittest.skip('good')
     def test3(self):
-        pass
+        ut_tensor()
 
 if __name__ == '__main__':
     # exec(open('ut_ml.py').read())

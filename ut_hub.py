@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """
-Model flowers using a pre-trained mobilenetv2 model from tensorflow_hub
+Multi-class classification example
+* 5 classes of flower types (flower_names)
+* 3670 flower images, 80%(2036)training and 20%(734) validation
+* model extends a pre-trained mobilenetv2 model from tensorflow_hub
+* 
 
 * old but working
 https://medium.com/towards-artificial-intelligence/testing-tensorflow-lite-image-classification-model-e9c0100d8de3
@@ -82,29 +86,20 @@ class Dflg1():
                                interpolation='bilinear',
                                classes = list(self.class_names))
 
+        # Found 2939 images belonging to 5 classes.
+        print('Loading training set')
+        self.train_gen = image_generator.flow_from_directory(str(self.data_dir),
+                                                             subset='training',
+                                                             shuffle=True,
+                                                             **dataflow_kwargs)
+
         # Found 731 images belonging to 5 classes.
+        print('Loading validation set')
         self.val_gen = image_generator.flow_from_directory(str(self.data_dir),
                                                            subset='validation',
                                                            shuffle=False,
                                                            **dataflow_kwargs)
 
-        # Found 2939 images belonging to 5 classes.
-        if False:
-            train_generator = ImageDataGenerator(
-                rotation_range=40,
-                horizontal_flip=True,
-                width_shift_range=0.2,
-                height_shift_range=0.2,
-                shear_range=0.2,
-                zoom_range=0.2,
-                **datagen_kwargs)
-        else:
-            train_generator = image_generator
-            
-        self.train_gen = train_generator.flow_from_directory(str(self.data_dir),
-                                                             subset='training',
-                                                             shuffle=True,
-                                                             **dataflow_kwargs)
     def m1_bld(self):
         _URL='https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/feature_vector/4'
 
@@ -115,26 +110,22 @@ class Dflg1():
         self.model.build((None,)+(self.img_height, self.img_width)+(3,))
         #self.model.summary()
         
-        if True:
-            self.model.compile(loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
-                               optimizer=tf.keras.optimizers.SGD(lr=0.005, momentum=0.9),
-                               metrics=['accuracy'])
-        else:
-            self.model.compile(loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
-                               optimizer=tf.keras.optimizers.Adam(lr=0.005, epsilon=0.1),
-                               metrics=['accuracy'])
+        self.model.compile(loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
+                           optimizer=tf.keras.optimizers.SGD(learning_rate=0.005, momentum=0.9),
+                           metrics=['accuracy'])
 
     def m1_train(self):
         steps_per_epoch = self.train_gen.samples//self.train_gen.batch_size
         val_steps_per_epoch = self.val_gen.samples//self.val_gen.batch_size
 
-        self.hist = self.model.fit_generator(
+        # 240129: fit_generator deprecated
+        self.hist = self.model.fit(
             self.train_gen,
             epochs=self.epochs,
             verbose=1,
             steps_per_epoch=steps_per_epoch,
             validation_data=self.val_gen,
-            validation_steps=val_steps_per_epoch).history
+            validation_steps=val_steps_per_epoch)
 
         # Measure accuracy and loss after training
         final_loss, final_accuracy = self.model.evaluate(self.val_gen, steps = val_steps_per_epoch)
@@ -149,11 +140,15 @@ class Dflg1():
         https://www.tensorflow.org/guide/keras/save_and_serialize
         '''
         model_path = os.path.join(self.save_dir, self.model_name)
-        #tf.saved_model.save(self.model, model_path)
-        #self.model.save(model_path, save_format='tf')
-        # simplest, recommended way
-        self.model.save(model_path)
-        print('Saved model at {}'.format(model_path))
+
+        if True:
+            # 240129: warning HDF5 file format is considered legacy
+            # simplest, recommended way
+            self.model.save(model_path)
+            print('Saved model at {}'.format(model_path))
+        else:
+            # exception
+            self.model.save(self.model.keras)
         
     def restore_model(self):
         '''
@@ -163,7 +158,6 @@ class Dflg1():
         https://www.tensorflow.org/guide/keras/save_and_serialize
         '''
         model_path = os.path.join(self.save_dir, self.model_name)
-        # self.model=tf.keras.models.load_model('/tmp/k1.2.h5', custom_objects={'KerasLayer':hub.KerasLayer})
         self.model=tf.keras.models.load_model(model_path, custom_objects={'KerasLayer':hub.KerasLayer})
         print('Restored trained model from {}'.format(model_path))
 
@@ -185,11 +179,14 @@ class Dflg1():
     def predict(self):
         '''
         predict new flowers against model
-        images must be transformed the same those for training the model
+        images must be transformed the same as those for training the model
         '''
 
+        print('flower predictions for new images')
+        print(f'using {flower_names}')
+
         # dir_predict = self.save_dir + '/flowers.predict'
-        self.dir_predict = '/data/flowers.predict'
+        self.dir_predict = '/data/flowers.predict.norun'
         for fname in os.listdir(self.dir_predict):
             img = load_img( os.path.join(self.dir_predict, fname), target_size=(self.img_width, self.img_height) )
             img = img_to_array(img)
@@ -240,7 +237,7 @@ class Ut(unittest.TestCase):
         self.ut.predict()
         self.ut.save_model()
 
-    #@unittest.skip('good')
+    @unittest.skip('good')
     def test_p1(self):
         '''
         x.test_p1()
@@ -256,6 +253,6 @@ class Ut(unittest.TestCase):
 
 if __name__ == '__main__':
     # exec(open('./ut_hub.py').read())
-    print('tf={}, keras={}'.format(tf.__version__, tf.keras.__version__))
+    # print('tf={}, keras={}'.format(tf.__version__, tf.keras.__version__))
     print('hub={}'.format(hub.__version__))
     unittest.main(exit=False)

@@ -4,8 +4,10 @@ LOG=/tmp/setup.$$.log
 touch $LOG
 chmod 666 $LOG
 
-grep docker /proc/1/cgroup >> $LOG
-if [ $? != 0 ]; then
+# based on control group v1 or v2
+#grep docker /proc/1/cgroup >> $LOG
+#if [ $? != 0 ]; then
+if [ ! -f /.dockerenv ]; then
     echo "NOT IN CONTAINER"
     exit -1
 fi

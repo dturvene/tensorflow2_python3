@@ -4,7 +4,11 @@
 # * .bashrc for current ML_IMG setting
 # * host_cpu_r: start a docker container for ML testing
 # * client_install.sh:linger_clone for cloning this repo
-# * gitrepo.sh:github_fix_push: `sign_and_send_pubkey` error
+#
+# 240106: restart work in repo
+# * new_host_cpu_b : build a new image based on tensorflow/tensorflow
+# * new_host_cpu_r : run the container
+# * new_test_container: connect to container from secondary terminals
 
 dstamp=$(date +%y%m%d)
 tstamp='date +%H%M%S'
@@ -100,9 +104,7 @@ host_cpu_b()
 # start docker image
 host_cpu_r()
 {
-    cd $ML_WORKPATH
-    
-    # 
+    # set necessary work areas
     DIR_REF=$ML_WORKPATH
     DIR_PYTHON=$HOME/ggit/python.git
     DIR_DATA=$HOME/ML_DATA
@@ -112,7 +114,7 @@ host_cpu_r()
     
     # host workspace, the git repo
     cd $DIR_REF
-    printf "$PWD: running\n$(docker images $ML_IMG)\n"
+    printf "$PWD: starting\n$(docker images $ML_IMG)\n"
     t_prompt
 
     if [ -z "$ML_IMG" ]; then
@@ -416,7 +418,7 @@ guest_gst_config()
 }
 
 # after image build - run this in guest to validate functionality
-# See docker.sh:conn_shell for a second bash shell
+# From docker.sh:conn_shell use `docker exec -it $(docker ps -q) bash`
 guest_cpu_test()
 {
     # manually check with $(id)
@@ -563,6 +565,85 @@ guest_gpu_test()
     python ut_ml.py
     python ut_tf.py
 }
+
+###########################################################
+# 240106 Restart ML Docker Work
+# * https://www.tensorflow.org/install/docker
+#   Docker setup has become more complex
+###########################################################
+git_tag_work()
+{
+    git tag -a ML1 -m 'original tensorflow work from 220219'
+}
+
+new_host_cpu_b()
+{
+    export ML_IMG=tf240106
+
+    docker images
+    docker rmi $ML_IMG
+    
+    #docker pull $ML_IMG
+    #docker images
+
+    docker build -f ml.Dockerfile -t $ML_IMG .
+}
+
+new_quick_test()
+{
+    docker run -it --rm tensorflow/tensorflow \
+	   python -c "import tensorflow as tf; print(tf.reduce_sum(tf.random.normal([1000, 1000])))"
+
+    # 2024-01-06 19:35:45.656896: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    # To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    # tf.Tensor(2039.9213, shape=(), dtype=float32)
+
+}
+	   
+new_host_cpu_r()
+{
+    DIR_REF=$ML_WORKPATH
+    DIR_PYTHON=$HOME/ggit/python.git
+    DIR_DATA=$HOME/ML_DATA
+
+    cd $DIR_REF
+    
+    printf "$PWD: starting\n$(docker images $ML_IMG)\n"
+    t_prompt
+
+    if [ -z "$ML_IMG" ]; then
+	echo "\$ML_IMG needs to be set"	
+	docker images
+	exit -1
+    fi
+
+    # Copied from host_cpu_r
+    echo "Starting $ML_IMG in $DIR_REF"
+    echo "for non-root, su user1"
+    docker run \
+	   --env="DISPLAY" \
+	   --device=/dev/video0:/dev/video0 \
+	   --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+	   --volume="$PWD:/home/ref" \
+	   --volume="$DIR_PYTHON:/home/work" \
+	   --volume="$DIR_DATA:/data" \
+	   --workdir=/home/ref \
+	   --net=host \
+	   --rm -it $ML_IMG
+
+    # su user1
+    #  /sbin/ldconfig.real: Can't create temporary cache file /etc/ld.so.cache~: Permission denied
+    #  can replicate by `user1> ldconfig -v`
+    #  SOLVED: this is caused when a shared library is added or modified, seems to be
+    #  unimportant but can `sudo ldconfig -V` next
+}
+
+# From docker.sh:conn_shell use `docker exec -it $(docker ps -q) bash`
+new_test_container()
+{
+    # clean up root prompt in emacs inferior shell
+    export PS1='\u:\!> '
+}    
 
 ###########################################################
 # Docker image management

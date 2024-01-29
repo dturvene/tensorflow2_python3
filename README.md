@@ -1,6 +1,10 @@
 <!--
-Review:
-pandoc -f markdown -t html README.md > README.html
+github repo
+https://github.com/dturvene/tensorflow2_python3
+
+Review this doc
+pandoc -f markdown -t html README.md > /tmp/README.html
+chrome /tmp/README.html
 -->
 
 # Abstract
@@ -9,7 +13,29 @@ environments either too complex or too simple for my research. I created this re
 in an effort to streamline my experience.
 
 This is a work-in-progress but serves to get me going on this tensorflow2 stuff...
- 
+
+# Jan 2024 updates
+There are a lot of changes to tensorflow since I lasted worked in this repo
+about two years ago, but I need to start using it again.  There have been some
+API changes that cause some of the procedures have improved.
+
+* Google has created a more comprehensive Docker image based on Ubuntu 22.04
+  with many of the tensorflow packages so I am basing the image on it 
+  `FROM tensorflow/tensorflow as base`. I still add my own flavor of user
+  interface and additional packages.
+  
+* See `ml.sh` for new shell functions to build and run the container.
+
+Working ML tests:
+* ut_ds.py: test dataset loading, big one is `LFW` (labeled faces in the wild)
+* ut_hub.py: multi-class classification on a large flower dataset
+
+I have not spent any time on fixing these:
+* ut_gpu.py: still need to set up GPU support
+* ut_ml.py: simple tensor tests
+* ut_tf.py: some unit tests not working
+* label_image.py: for tensorflow lite and [coralboard](https://coral.ai/products/dev-board/)
+  
 # High level Container Requirements
 So what are my basic requirements for the enivonment?  My host is Ubuntu 18.04
 so I'm looking for an image that mimics that environment but doesn't polute

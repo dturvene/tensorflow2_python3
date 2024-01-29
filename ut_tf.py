@@ -35,14 +35,17 @@ Weight:
 Accel:
 Model Year:
 Origin: 1=USA, 2=Europe, 3=Japan
+
+    240129: update to latest
     '''
-    dataset_path = keras.utils.get_file("auto-mpg.data",
-                                        "http://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data")
+    url='http://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data'
+    
     column_names = ['MPG','Cylinders','Displacement','Horsepower','Weight',
                     'Acceleration', 'Model Year', 'Origin']
-    raw_dataset = pd.read_csv(dataset_path, names=column_names,
-                              na_values = "?", comment='\t',
-                              sep=" ", skipinitialspace=True)
+    
+    raw_dataset = pd.read_csv(url, names=column_names,
+                              na_values = '?', comment='\t',
+                              sep=' ', skipinitialspace=True)
 
     return(raw_dataset)
 
@@ -66,11 +69,17 @@ def getdata():
     print('isna:\n{}'.format(dataset.isna().sum()))
     dataset = dataset.dropna()
 
+    # Origin is categorical so
     # create USA/Europe/Japan one-hot columns
-    origin = dataset.pop('Origin')
-    dataset['USA'] = (origin == 1)*1.0
-    dataset['Europe'] = (origin == 2)*1.0
-    dataset['Japan'] = (origin == 3)*1.0
+    if False:
+        origin = dataset.pop('Origin')
+        dataset['USA'] = (origin == 1)*1.0
+        dataset['Europe'] = (origin == 2)*1.0
+        dataset['Japan'] = (origin == 3)*1.0
+    else:
+        dataset['Origin'] = dataset['Origin'].map({1: 'USA', 2: 'Europe', 3: 'Japan'})
+        dataset = pd.get_dummies(dataset, columns=['Origin'], prefix='', prefix_sep='')
+        dataset.tail()
 
     # split data into train and test datasets
     # return a random sample from axis of object, default is stat axis
@@ -176,12 +185,17 @@ def plot_history(history):
 
 def ut_keras_br():
     '''
-    220401: bad link
-    * https://github.com/tensorflow/docs/blob/master/site/en/r2/tutorials/keras/basic_regression.ipynb
-    moved to 
+    basic regression
     * https://www.tensorflow.org/tutorials/keras/regression
     * https://github.com/tensorflow/docs/blob/master/site/en/tutorials/keras/regression.ipynb
     '''
+
+    # make numpy printouts easier to read
+    # np.set_printoptions(precision=3, suppress=True)
+
+    print('Basic Regression test crashing')
+    return(1)
+    
     # training, test, training stats PD DataFrames
     (tr_data, ts_data, tr_stats) = getdata()
 
@@ -269,6 +283,78 @@ def ut_tfbeg():
     scores=model.evaluate(x_test, y_test, verbose=0)
     print('loss={} acc={}'.format(scores[0], scores[1]))
 
+def ut_tfbeg2():
+    '''
+    240109 minor updates from original ut_tfbeg
+    See https://www.tensorflow.org/tutorials/quickstart/beginner
+    '''
+    mnist = tf.keras.datasets.mnist
+
+    # 60000 train, 10000 test
+    # x: array[28][28] float64
+    # y: uint8
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    # normalize features
+    x_train, x_test = x_train / 255.0, x_test / 255.0
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Flatten(input_shape=(28, 28)),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(10)
+    ])
+
+    # x_train numpy.ndarray shape (60000, 28, 28)
+    # for a sample the model returns a vector of log-odds scores
+    # for each class (0-9) completely random at this time
+    preds = model(x_train[:1])
+    
+    # convert logits to probabilities for each class (0.0 - 1.0, total to 1.0)
+    # for the sample
+    probs = tf.nn.softmax(preds).numpy()
+
+    # 
+    loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+
+    # loss_fn returns a tensor of the probability
+    # should be close to random (>2.0)
+    untrained_loss = loss_fn(y_train[:1], preds).numpy()
+
+    # bp()
+
+    model.compile(optimizer='adam',
+                  loss=loss_fn,
+                  metrics=['accuracy'])
+    print('fit model with training data')
+    model.fit(x_train, y_train, epochs=5)
+
+    print('evaluate model on test data')
+    scores=model.evaluate(x_test, y_test, verbose=2)
+
+    preds = model(x_train[:1])
+
+    # <0.5, should be <0.1
+    trained_loss = loss_fn(y_train[:1], preds).numpy()
+    bp()
+    
+
+def ut_tfpandas():
+    '''
+    https://www.tensorflow.org/tutorials/load_data/pandas_dataframe
+    '''
+    csv_file = tf.keras.utils.get_file('heart.csv',
+                                       'https://storage.googleapis.com/download.tensorflow.org/data/heart.csv')
+
+    df = pd.read_csv(csv_file)
+
+    target = df.pop('target')
+
+    numeric_feature_names = ['age', 'thalach', 'trestbps',  'chol', 'oldpeak']
+    numeric_features = df[numeric_feature_names]
+
+    tf.convert_to_tensor(numeric_features)
+    
+    bp()
+
 def ut_tfds():
     '''
     https://www.tensorflow.org/datasets
@@ -300,15 +386,21 @@ class Ut(unittest.TestCase):
         pass
     def tearDown(self):
         pass
-    #@unittest.skip('pass')
+    @unittest.skip('pass')
     def test1(self):
         pass
     #@unittest.skip('good')
     def test2(self):
         ut_keras_br()
-    @unittest.skip('good')        
-    def test3(self):
+    #@unittest.skip('good')        
+    def test3_1(self):
         ut_tfbeg()
+    @unittest.skip('good')        
+    def test3_2(self):
+        ut_tfbeg2()
+    @unittest.skip('good')        
+    def test4(self):
+        ut_tfpandas()
 
 if __name__ == '__main__':
     # exec(open('./ut_tf.py').read())
