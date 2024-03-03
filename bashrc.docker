@@ -18,7 +18,30 @@ shopt -s checkwinsize
 
 # simple bash prompt
 export PS1='\u:\!> '
-export TERM=linux
-echo -e "\e[m"
+
+# docker will probably set TERM=xterm-256color
+
+# use docker exec -e INSIDE_EMACS to pass this from emacs subshell
+# See docker.sh:conn_shell
+if [ -z $INSIDE_EMACS ]; then
+    export TERM=linux
+    # xterm shell
+    # set background to black
+    echo -e "\e[m"
+    # set xterm title
+    PROMPT_COMMAND='echo -ne "\033]0;Docker\007"'
+    # change xterm title
+    set_title() {
+	# symbolic escape codes
+	PROMPT_COMMAND='echo -ne "\e]0;"'$1'"\a"'
+    }
+    echo IN gnome-shell
+else
+    # emacs interactive subshell
+    export TERM=dumb
+
+    echo IN emacs subshell
+fi
 
 alias h="history"
+

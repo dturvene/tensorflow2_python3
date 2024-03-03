@@ -41,17 +41,13 @@ def ut_tensor():
     https://www.tensorflow.org/api_docs/python/tf/Tensor
 
     '''
-
-    print(f'tensor work')
-
-    print('create a tensor')
-    tf.Tensor([[1.0, 2.0], [3.0, 4.0]], shape=(2, 2), dtype=float32)
     
-    print('compute some values using a tensor')
+    print('create tensors and compute some values')
     c = tf.constant([[1.0, 2.0], [3.0, 4.0]])
     d = tf.constant([[1.0, 1.0], [0.0, 1.0]])
     e = tf.matmul(c, d)
     print(e)
+    # tf.Tensor([[1., 3.], [3., 7.]], shape=(2, 2), dtype=float32)
 
     # bp()
 
@@ -81,20 +77,23 @@ class Ut(unittest.TestCase):
         plt_setup()
     def tearDown(self):
         pass
-    @unittest.skip('good')
+    # @unittest.skip('good')
     def test1(self):
         '''basic sanity test'''
+        print('tf functions')
         print(tf.reduce_sum(tf.random.normal([1000,1000])))
-    @unittest.skip('good')        
-    def test2(self):
-        '''plot images using matplotlib'''
-        ut_plt()
     # @unittest.skip('good')
-    def test3(self):
+    def test2(self):
         ut_tensor()
+    # @unittest.skip('good')        
+    def test3(self):
+        '''plot images using matplotlib'''
+        print('check image API')
+        ut_plt()
 
 if __name__ == '__main__':
     # exec(open('ut_ml.py').read())
+    print(f'Check package versions')
     print(f'python ver={sys.version}')
     print(f'numpy ver={np.__version__}')
     print(f'seaborn ver={sns.__version__}')

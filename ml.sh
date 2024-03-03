@@ -9,6 +9,9 @@
 # * new_host_cpu_b : build a new image based on tensorflow/tensorflow
 # * new_host_cpu_r : run the container
 # * new_test_container: connect to container from secondary terminals
+#
+# connect to running container:
+#   docker exec -e INSIDE_EMACS -it $(docker ps -q) bash
 
 dstamp=$(date +%y%m%d)
 tstamp='date +%H%M%S'
@@ -172,7 +175,8 @@ host_cpu_commit()
     CONTAINER_ID=$(docker ps -q)
 
     echo "ML_IMG=$ML_IMG ML_IMG_NEW=$ML_IMG_NEW"
-    
+
+    # https://docs.docker.com/engine/reference/commandline/container_commit/
     # -m: commit message
     # container id:
     # image repo:tag
@@ -418,7 +422,7 @@ guest_gst_config()
 }
 
 # after image build - run this in guest to validate functionality
-# From docker.sh:conn_shell use `docker exec -it $(docker ps -q) bash`
+# See docker.sh:conn_shell
 guest_cpu_test()
 {
     # manually check with $(id)
@@ -638,12 +642,35 @@ new_host_cpu_r()
     #  unimportant but can `sudo ldconfig -V` next
 }
 
-# From docker.sh:conn_shell use `docker exec -it $(docker ps -q) bash`
+# Use docker.sh:conn_shell
 new_test_container()
 {
     # clean up root prompt in emacs inferior shell
     export PS1='\u:\!> '
-}    
+
+    # additional package installs, remove after image update:
+    # 1. copy to ml.Dockerfile and rebuild image
+    # 2. 'docker commit' to new image (host_cpu_commit)
+    apt install -y vim
+
+    # upgrade pip
+    python3 -m pip install --upgrade pip
+
+    # for sklearn
+    pip install scikit-learn
+}
+
+# 240106: some old tests don't work on new image
+new_regtest()
+{
+    echo 240106: quick regression test in container user1
+
+    cd /home/ref
+    python ut_ml.py
+    python ut_tf.py
+    # flowers image matching, takes a long time to train
+    python ut_hub.py
+}
 
 ###########################################################
 # Docker image management
